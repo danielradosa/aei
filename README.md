@@ -134,6 +134,121 @@ Logs live in `~/.aei-postinstall.log`.
 
 ---
 
+## Dualbooting with Windows
+
+If you want to keep Windows alongside Arch (same disk, both selectable from
+the boot menu), do this **instead of** steps 5-6 above. The Windows side
+needs a few minutes of prep first or you'll fight NTFS/BitLocker/Fast Startup
+later.
+
+### A. Prepare in Windows (before booting the Arch ISO)
+
+1. **Disable Fast Startup.** Settings → System → Power & battery → Additional
+   power settings → "Choose what the power buttons do" → "Change settings
+   currently unavailable" → uncheck *Turn on fast startup*. With Fast Startup
+   on, Windows leaves NTFS in a half-hibernated state that Linux refuses to
+   touch — and your dualboot setup will look fine until the first time you
+   try to mount the Windows partition from Arch.
+2. **Disable BitLocker** *or* save the recovery key.
+   Settings → Privacy & security → Device encryption → off.
+   If you can't turn it off (Win Pro on TPM hardware), at least back up the
+   recovery key — resizing the partition can trigger a recovery prompt.
+3. **Shrink the Windows partition** to make room for Arch.
+   `Win + X → Disk Management` → right-click `C:` → *Shrink Volume*.
+   80 GB minimum for a comfortable Arch install, more if you want games.
+   Click *Shrink* — leave the freed space *unallocated* (don't make a new
+   partition from Windows; we'll do that from the ISO with Linux tooling).
+4. **Disable Secure Boot** in your firmware (BIOS/UEFI). Reboot, mash
+   F2/Del/F12 (vendor-dependent), find *Boot → Secure Boot → Disabled*.
+   Without this, your USB won't boot the Arch ISO.
+
+### B. Boot the Arch ISO
+
+Steps 1-4 from the main guide above (download ISO, write to USB, boot, set
+keymap, get networking up).
+
+### C. Carve the Linux partition out of the unallocated space
+
+Identify your disk:
+
+```bash
+lsblk -po NAME,SIZE,TYPE,FSTYPE,PARTLABEL
+# Typical Windows 11 NVMe layout:
+#   nvme0n1
+#   ├─nvme0n1p1   100M  part  vfat        EFI    ← Windows ESP — DO NOT FORMAT
+#   ├─nvme0n1p2    16M  part              MSR
+#   ├─nvme0n1p3   180G  part  ntfs        Basic  ← Windows C:  ← shrunk
+#   └─nvme0n1p4   650M  part  ntfs        Recovery
+```
+
+Open `cfdisk` and create one new partition in the free space:
+
+```bash
+cfdisk /dev/nvme0n1
+# pick "Free space" → New → enter the size (or full remaining) →
+# Type → "Linux filesystem" → Write → "yes" → Quit
+```
+
+After writing, `lsblk` should show a new partition like `nvme0n1p5`. That's
+your `ROOT_PART`. The ESP from step C is your `ESP_PART` — same one Windows
+uses; we don't reformat it.
+
+### D. Run aei in manual-partition mode
+
+```bash
+pacman -Sy --noconfirm git
+git clone https://github.com/danielradosa/aei && cd aei
+nano arch-install.conf
+```
+
+Edit these lines in `arch-install.conf` (uncomment + set):
+
+```
+MANUAL_PARTITION="yes"
+ROOT_PART="/dev/nvme0n1p5"     # the partition you just made
+ESP_PART="/dev/nvme0n1p1"      # Windows' ESP — re-used as /boot/efi
+# DISK="/dev/sda"              # ← comment this out; not used in manual mode
+```
+
+Then:
+
+```bash
+./arch-install.sh --config arch-install.conf
+# or, equivalently, leave the conf alone and pass:
+# MANUAL_PARTITION=yes ROOT_PART=/dev/nvme0n1p5 ESP_PART=/dev/nvme0n1p1 \
+#   ./arch-install.sh --manual-partition
+```
+
+What aei does differently in this mode:
+
+- **Skips** `sgdisk --zap-all` — your Windows partitions stay where they are.
+- **Skips** `mkfs.fat` on the ESP — your Windows boot files survive.
+- **Formats only** `ROOT_PART` (LUKS-wraps it first if `ENCRYPT="yes"`).
+- **Mounts** Windows' ESP at `/boot/efi` — Arch's kernel, initramfs and
+  systemd-boot loader land alongside `EFI/Microsoft/Boot/`.
+- **Detects Windows automatically** in the bootloader step:
+  - **systemd-boot**: writes `/boot/efi/loader/entries/windows.conf` pointing
+    at `/EFI/Microsoft/Boot/bootmgfw.efi`.
+  - **grub**: installs `os-prober` and `ntfs-3g`, sets
+    `GRUB_DISABLE_OS_PROBER=false`, regenerates `grub.cfg` — Windows
+    appears in the menu automatically.
+
+After phase 2 finishes, reboot. The boot menu now lists both **Arch Linux**
+(default) and **Windows**. Phase 3 runs on first Arch login as usual.
+
+### E. Dualboot troubleshooting
+
+| Symptom                                                | Fix                                                                                                       |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Windows entry doesn't show in systemd-boot menu        | Verify `/boot/efi/EFI/Microsoft/Boot/bootmgfw.efi` exists. If not, your ESP is on a different partition than you set. Check with `mount \| grep efi` and `find /boot/efi -name bootmgfw.efi`. Re-create `/boot/efi/loader/entries/windows.conf` manually if needed. |
+| Windows boots, Arch doesn't (or vice versa)            | Open firmware boot menu (F12 etc.) — check both `Windows Boot Manager` and `Linux Boot Manager`/`GRUB` are listed. If only one: `efibootmgr -v` from a live ISO and `efibootmgr --create ...` to add the missing entry. |
+| Mounting Windows partition fails with "wrong fs type"  | Fast Startup is still on. Boot Windows, properly shut down with Shift held while clicking *Shut down* (forces a real shutdown), then disable Fast Startup. |
+| BitLocker recovery prompt on first Windows boot post-install | Expected once. Enter the recovery key you saved in prep step A.2. Future boots are fine. |
+| Clock is 8 hours off in Windows after using Arch       | Linux uses UTC for the hardware clock; Windows uses local. In Arch: `timedatectl set-local-rtc 1 --adjust-system-clock`. |
+| Want to remove Arch later                              | Boot Windows → Disk Management → delete the Linux partition → extend C: into the free space. Then in firmware: remove the Linux EFI entry with `bcdedit` from an admin cmd, or boot the Windows install media → recovery → `bootrec /fixmbr` and `bootrec /rebuildbcd`. |
+
+---
+
 ## Customizing
 
 | Want to...                    | Edit                                          |

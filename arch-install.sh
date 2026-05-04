@@ -42,6 +42,19 @@ set -euo pipefail
 : "${ENABLE_MULTILIB:=yes}"
 : "${ENABLE_SERVICES:=NetworkManager bluetooth sshd}"
 
+# ── Dualboot mode ───────────────────────────────────────────────────────────
+# Set MANUAL_PARTITION=yes when you've already partitioned the disk yourself
+# (typical for dualboot: Windows ESP + your shrunk Windows partition + a new
+# root partition you cut from the freed space). The installer will then SKIP
+# `sgdisk --zap-all` and re-use the partitions named in ROOT_PART / ESP_PART
+# (and BOOT_PART for BIOS). Only ROOT_PART gets formatted; the existing ESP
+# is left alone so Windows still boots from it.
+#
+# Example for an NVMe disk where Windows lives on p1 (ESP) + p3 (NTFS) and
+# you've created p4 as your Linux root:
+#   MANUAL_PARTITION=yes ROOT_PART=/dev/nvme0n1p4 ESP_PART=/dev/nvme0n1p1
+: "${MANUAL_PARTITION:=no}"
+
 SELF="$(readlink -f "$0")"
 REPO_DIR="$(dirname "$SELF")"
 LOG_PRE=/var/log/arch-install.log
@@ -142,12 +155,13 @@ menu() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --cli)        USE_TUI=no ;;
-            --tui)        USE_TUI=yes ;;
-            --dry-run)    DRY_RUN=yes ;;
-            --config)     CONFIG_FILE="$2"; shift ;;
-            --phase)      PHASE="$2"; shift ;;
-            -h|--help)    sed -n '2,30p' "$SELF" | sed 's/^# \?//'; exit 0 ;;
+            --cli)               USE_TUI=no ;;
+            --tui)               USE_TUI=yes ;;
+            --dry-run)           DRY_RUN=yes ;;
+            --manual-partition)  MANUAL_PARTITION=yes ;;
+            --config)            CONFIG_FILE="$2"; shift ;;
+            --phase)             PHASE="$2"; shift ;;
+            -h|--help)           sed -n '2,30p' "$SELF" | sed 's/^# \?//'; exit 0 ;;
             *) die "Unknown flag: $1" ;;
         esac
         shift
@@ -231,6 +245,24 @@ interactive_config() {
 }
 
 select_disk() {
+    if [[ "$MANUAL_PARTITION" == "yes" ]]; then
+        log "MANUAL_PARTITION=yes — skipping disk picker."
+        [[ -n "${ROOT_PART:-}" && -b "${ROOT_PART:-}" ]] \
+            || die "MANUAL_PARTITION needs ROOT_PART set to an existing block device (e.g. /dev/nvme0n1p4)."
+        if [[ "$FIRMWARE" == "uefi" ]]; then
+            [[ -n "${ESP_PART:-}" && -b "${ESP_PART:-}" ]] \
+                || die "MANUAL_PARTITION + UEFI needs ESP_PART set (e.g. /dev/nvme0n1p1 — usually Windows' ESP)."
+        else
+            [[ -n "${BOOT_PART:-}" && -b "${BOOT_PART:-}" ]] \
+                || die "MANUAL_PARTITION + BIOS needs BOOT_PART set."
+        fi
+        log "Will format ROOT_PART=$ROOT_PART (only); leaving ESP_PART=${ESP_PART:-} untouched."
+        confirm "Format $ROOT_PART (Linux root)? Existing data on it will be lost." \
+            || die "User aborted."
+        : "${DISK:=auto}"   # not used in manual mode but referenced later
+        return
+    fi
+
     log "Detecting disks..."
 
     if [[ -n "${DISK:-}" ]]; then
@@ -264,24 +296,32 @@ select_disk() {
 }
 
 partition_disk() {
-    log "Partitioning $DISK..."
-    if [[ "$FIRMWARE" == "uefi" ]]; then
-        run sgdisk --zap-all "$DISK"
-        run sgdisk -n1:0:+1G -t1:ef00 -c1:ESP "$DISK"
-        run sgdisk -n2:0:0   -t2:8300 -c2:root "$DISK"
+    if [[ "$MANUAL_PARTITION" == "yes" ]]; then
+        log "Reusing pre-existing partitions (MANUAL_PARTITION=yes):"
+        log "  ROOT_PART=$ROOT_PART"
+        log "  ESP_PART=${ESP_PART:-<none>}"
+        log "  BOOT_PART=${BOOT_PART:-<none>}"
+        # Skip sgdisk + partprobe — partitions already exist.
     else
-        run sgdisk --zap-all "$DISK"
-        run sgdisk -n1:0:+1M   -t1:ef02 -c1:bios "$DISK"
-        run sgdisk -n2:0:+512M -t2:8300 -c2:boot "$DISK"
-        run sgdisk -n3:0:0     -t3:8300 -c3:root "$DISK"
-    fi
-    run partprobe "$DISK"; sleep 2
+        log "Partitioning $DISK..."
+        if [[ "$FIRMWARE" == "uefi" ]]; then
+            run sgdisk --zap-all "$DISK"
+            run sgdisk -n1:0:+1G -t1:ef00 -c1:ESP "$DISK"
+            run sgdisk -n2:0:0   -t2:8300 -c2:root "$DISK"
+        else
+            run sgdisk --zap-all "$DISK"
+            run sgdisk -n1:0:+1M   -t1:ef02 -c1:bios "$DISK"
+            run sgdisk -n2:0:+512M -t2:8300 -c2:boot "$DISK"
+            run sgdisk -n3:0:0     -t3:8300 -c3:root "$DISK"
+        fi
+        run partprobe "$DISK"; sleep 2
 
-    if [[ "$DISK" =~ nvme|mmcblk ]]; then PFX="${DISK}p"; else PFX="$DISK"; fi
-    if [[ "$FIRMWARE" == "uefi" ]]; then
-        ESP_PART="${PFX}1"; ROOT_PART="${PFX}2"; BOOT_PART=""
-    else
-        BOOT_PART="${PFX}2"; ROOT_PART="${PFX}3"; ESP_PART=""
+        if [[ "$DISK" =~ nvme|mmcblk ]]; then PFX="${DISK}p"; else PFX="$DISK"; fi
+        if [[ "$FIRMWARE" == "uefi" ]]; then
+            ESP_PART="${PFX}1"; ROOT_PART="${PFX}2"; BOOT_PART=""
+        else
+            BOOT_PART="${PFX}2"; ROOT_PART="${PFX}3"; ESP_PART=""
+        fi
     fi
 
     if [[ "$ENCRYPT" == "yes" ]]; then
@@ -295,13 +335,20 @@ partition_disk() {
         ROOT_DEV="$ROOT_PART"
     fi
 
-    log "Formatting ($FILESYSTEM)..."
+    log "Formatting root ($FILESYSTEM)..."
     case "$FILESYSTEM" in
         ext4)  run mkfs.ext4 -F "$ROOT_DEV" ;;
         btrfs) run mkfs.btrfs -f "$ROOT_DEV" ;;
     esac
-    [[ -n "$ESP_PART"  ]] && run mkfs.fat -F32 "$ESP_PART"
-    [[ -n "$BOOT_PART" ]] && run mkfs.ext4 -F "$BOOT_PART"
+    # In MANUAL_PARTITION mode, the ESP and BOOT_PART already host another OS
+    # (typically Windows' EFI System Partition + a recovery/boot partition).
+    # Reformatting them would brick that OS — so skip both formats entirely.
+    if [[ "$MANUAL_PARTITION" != "yes" ]]; then
+        [[ -n "$ESP_PART"  ]] && run mkfs.fat -F32 "$ESP_PART"
+        [[ -n "$BOOT_PART" ]] && run mkfs.ext4 -F "$BOOT_PART"
+    else
+        log "Skipping mkfs on ESP_PART / BOOT_PART (manual-partition mode)."
+    fi
 
     log "Mounting..."
     run mount "$ROOT_DEV" "$TARGET"
@@ -409,6 +456,7 @@ ESP_PART='${ESP_PART:-}'
 BOOT_PART='${BOOT_PART:-}'
 DISK='$DISK'
 MICROCODE='${MICROCODE:-}'
+MANUAL_PARTITION='$MANUAL_PARTITION'
 ROOT_PASSWORD='$ROOT_PASSWORD'
 USER_PASSWORD='$USER_PASSWORD'
 PHASE='chroot'
@@ -561,6 +609,17 @@ Description = Copying kernel & initrd to ESP
 When = PostTransaction
 Exec = /bin/sh -c 'cp /boot/vmlinuz-* /boot/initramfs-*.img /boot/*-ucode.img /boot/efi/ 2>/dev/null || true'
 EOF
+
+            # Dualboot: if the ESP holds Windows' boot manager, add an entry
+            # for it so tuigreet/systemd-boot can chainload it. systemd-boot
+            # has no os-prober; this is the manual equivalent.
+            if [[ -f /boot/efi/EFI/Microsoft/Boot/bootmgfw.efi ]]; then
+                log "Detected Windows on the ESP — adding systemd-boot entry."
+                cat > /boot/efi/loader/entries/windows.conf <<'EOF'
+title   Windows
+efi     /EFI/Microsoft/Boot/bootmgfw.efi
+EOF
+            fi
             ;;
         grub)
             if [[ "$FIRMWARE" == "uefi" ]]; then
@@ -574,6 +633,19 @@ EOF
                 extra="cryptdevice=UUID=$uuid:cryptroot"
             fi
             sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"$extra $nvidia_args\"|" /etc/default/grub
+
+            # Dualboot: enable os-prober so grub-mkconfig discovers Windows.
+            # (Disabled by default in Arch's grub package since 2.06.)
+            if [[ "$MANUAL_PARTITION" == "yes" ]] || [[ -f /boot/efi/EFI/Microsoft/Boot/bootmgfw.efi ]]; then
+                log "Enabling os-prober for dualboot detection."
+                pacman -S --noconfirm --needed os-prober ntfs-3g 2>&1 | tee -a "$LOG_PRE" || true
+                if grep -q '^GRUB_DISABLE_OS_PROBER=' /etc/default/grub; then
+                    sed -i 's/^GRUB_DISABLE_OS_PROBER=.*/GRUB_DISABLE_OS_PROBER=false/' /etc/default/grub
+                else
+                    echo 'GRUB_DISABLE_OS_PROBER=false' >> /etc/default/grub
+                fi
+            fi
+
             run grub-mkconfig -o /boot/grub/grub.cfg
             ;;
     esac
