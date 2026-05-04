@@ -1,0 +1,123 @@
+@import url("/home/daniel/.cache/wal/waybar-colors.css");
+
+* {
+    border: none;
+    border-radius: 0;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+    min-height: 0;
+    transition-duration: 200ms;
+    transition-timing-function: ease;
+}
+
+window#waybar {
+    background: mix(@wal_bg, transparent, 0.08);
+    color: @wal_fg;
+    border-radius: 14px;
+    border: 1px solid mix(@wal_indigo, transparent, 0.67);
+    box-shadow: 0 4px 28px rgba(0,0,0,0.75);
+}
+
+/* ── Workspaces ──────────────────────────────── */
+#workspaces {
+    background: mix(@wal_bg, @wal_surface, 0.5);
+    border-radius: 10px;
+    margin: 5px 6px 5px 8px;
+    padding: 0 3px;
+    border: 1px solid mix(@wal_indigo, transparent, 0.8);
+}
+
+#workspaces button {
+    padding: 0 9px;
+    background: transparent;
+    color: mix(@wal_fg, @wal_bg, 0.45);
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    transition: all 150ms ease;
+}
+
+#workspaces button:hover {
+    background: mix(@wal_violet, transparent, 0.87);
+    color: @wal_fg;
+    box-shadow: none;
+}
+
+#workspaces button.active {
+    color: @wal_gold;
+    background: mix(@wal_gold, transparent, 0.9);
+    box-shadow: inset 0 -2px 0 mix(@wal_gold, transparent, 0.2);
+}
+
+#workspaces button.urgent {
+    color: @wal_magenta;
+    background: mix(@wal_magenta, transparent, 0.87);
+}
+
+/* ── Window title ────────────────────────────── */
+#window {
+    padding: 0 14px;
+    color: mix(@wal_surface, @wal_fg, 0.6);
+    font-style: italic;
+    font-size: 12px;
+}
+
+/* ── Clock ───────────────────────────────────── */
+#clock {
+    padding: 0 24px;
+    color: @wal_gold;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 2px;
+}
+
+/* ── Right modules — individual pills ───────── */
+#pulseaudio,
+#network,
+#cpu,
+#memory,
+#battery,
+#tray {
+    background: mix(@wal_bg, @wal_surface, 0.4);
+    border: 1px solid mix(@wal_indigo, transparent, 0.83);
+    border-radius: 8px;
+    margin: 5px 3px;
+    padding: 0 12px;
+    font-size: 12px;
+}
+
+#pulseaudio        { color: @wal_fg; }
+#pulseaudio.muted  { color: @wal_dim; border-color: mix(@wal_surface, transparent, 0.5); }
+#network           { color: @wal_gold; }
+#cpu               { color: @wal_purple; }
+#memory            { color: @wal_amethyst; }
+#battery           { color: @wal_amber; }
+
+#battery.warning   { color: @wal_gold; border-color: mix(@wal_gold, transparent, 0.67); }
+
+#battery.critical {
+    color: @wal_crimson;
+    border-color: mix(@wal_crimson, transparent, 0.6);
+    animation-name: blink;
+    animation-duration: 1s;
+    animation-timing-function: steps(2);
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+#battery.charging,
+#battery.plugged { color: @wal_blue; border-color: mix(@wal_blue, transparent, 0.7); }
+
+#tray { padding: 0 10px; margin-right: 6px; }
+#tray > .passive { -gtk-icon-effect: dim; }
+
+/* ── Tooltips ────────────────────────────────── */
+tooltip {
+    background: @wal_surface;
+    border: 1px solid mix(@wal_violet, transparent, 0.67);
+    border-radius: 8px;
+    color: @wal_fg;
+    padding: 6px 12px;
+}
+
+@keyframes blink { to { color: @wal_surface; } }

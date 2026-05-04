@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#
+# /usr/local/bin/start-hyprland — wrapper greetd uses to launch Hyprland.
+#
+# Why a wrapper instead of `--cmd Hyprland` directly:
+#   1. Greetd's session inherits a minimal environment. Without the XDG_*
+#      and DBUS_* hints set first, Qt/GTK apps render as XWayland fallbacks
+#      and pavucontrol/blueman icons disappear from the tray.
+#   2. systemd user services (mako via .service unit, hypridle, etc.) need
+#      these vars *imported* before Hyprland starts, otherwise units that
+#      depend on graphical-session.target never activate.
+#   3. NVIDIA users (us) need the modeset/GBM hints set in the parent process
+#      so they propagate to Hyprland's children.
+#
+# Edit freely — anything you append before `exec` becomes part of the session.
+# ============================================================================
+
+# ── XDG session hints ──────────────────────────────────────────────────────
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_DESKTOP=Hyprland
+
+# ── Toolkit Wayland-firstness ──────────────────────────────────────────────
+export GDK_BACKEND="wayland,x11"
+export QT_QPA_PLATFORM="wayland;xcb"
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+export MOZ_ENABLE_WAYLAND=1
+export _JAVA_AWT_WM_NONREPARENTING=1   # fixes blank Java GUIs (IDEA, etc.)
+export SDL_VIDEODRIVER=wayland
+
+# ── NVIDIA proprietary driver hints ────────────────────────────────────────
+# These are also set inside hyprland.conf via `env =`, but exporting them in
+# the parent makes them visible to processes Hyprland spawns through systemd.
+if lspci | grep -qi nvidia; then
+    export LIBVA_DRIVER_NAME=nvidia
+    export GBM_BACKEND=nvidia-drm
+    export __GLX_VENDOR_LIBRARY_NAME=nvidia
+    export NVD_BACKEND=direct
+    export ELECTRON_OZONE_PLATFORM_HINT=auto
+fi
+
+# ── Make sure systemd user manager + dbus see the env ──────────────────────
+# Without this, units in graphical-session.target start with empty XDG_* and
+# misbehave (no clipboard, no portal, etc.).
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd \
+        DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE \
+        XDG_SESSION_DESKTOP &
+fi
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user import-environment \
+        DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE \
+        XDG_SESSION_DESKTOP PATH &
+fi
+
+# ── Launch ─────────────────────────────────────────────────────────────────
+exec Hyprland "$@"

@@ -1,0 +1,70 @@
+add_newline = false
+
+format = """
+$directory\
+$git_branch\
+$git_status\
+$python\
+$nodejs\
+$rust\
+$golang\
+$cmd_duration\
+$character"""
+
+[directory]
+format = "[ 󰉋 $path ]($style)"
+style = "bold #9D4EDD"
+truncation_length = 3
+truncation_symbol = "…/"
+
+[git_branch]
+format = "[ $symbol$branch ]($style)"
+symbol = " "
+style = "bold #F0A500"
+
+[git_status]
+format = '([$all_status$ahead_behind]($style) )'
+style = "bold #A870D8"
+conflicted = "⚡"
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked = "?"
+stashed = "⚗"
+modified = "~"
+staged = "+"
+renamed = "»"
+deleted = "✘"
+
+[python]
+format = "[ $symbol$version ]($style)"
+symbol = " "
+style = "#A870D8"
+
+[nodejs]
+format = "[ $symbol$version ]($style)"
+symbol = " "
+style = "#8C9BB3"
+
+[rust]
+format = "[ $symbol$version ]($style)"
+symbol = " "
+style = "#C65130"
+
+[golang]
+format = "[ $symbol$version ]($style)"
+symbol = " "
+style = "#64748C"
+
+[cmd_duration]
+format = "[ 󰔛 $duration ]($style)"
+style = "italic #5040A0"
+min_time = 2_000
+
+[character]
+success_symbol = "[⚗](bold #9D4EDD)"
+error_symbol   = "[✖](bold #7B1E5A)"
+vimcmd_symbol  = "[](bold #F0A500)"
+
+[line_break]
+disabled = true

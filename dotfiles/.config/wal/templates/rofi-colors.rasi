@@ -1,0 +1,12 @@
+* {{
+    wal-bg:       {color0};
+    wal-surface:  {color8};
+    wal-fg:       {color7};
+    wal-dim:      {color8};
+    wal-gold:     {color11};
+    wal-purple:   {color10};
+    wal-violet:   {color5};
+    wal-indigo:   {color4};
+    wal-crimson:  {color1};
+    wal-amethyst: {color6};
+}}

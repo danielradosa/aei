@@ -1,0 +1,92 @@
+@import "/home/daniel/.cache/wal/rofi-colors.rasi"
+
+* {
+    font: "JetBrainsMono Nerd Font 11";
+    background-color: transparent;
+    text-color: @wal-fg;
+}
+
+window {
+    background-color: @wal-bg;
+    border:           1px solid;
+    border-color:     @wal-violet;
+    border-radius:    12px;
+    width:            520px;
+    padding:          0;
+    location:         center;
+}
+
+mainbox {
+    background-color: transparent;
+    padding:          0;
+    children:         [ inputbar, listview ];
+}
+
+inputbar {
+    background-color: @wal-surface;
+    border:           0 0 1px 0;
+    border-color:     @wal-indigo;
+    border-radius:    11px 11px 0 0;
+    padding:          14px 16px;
+    spacing:          10px;
+    children:         [ prompt, entry ];
+}
+
+prompt {
+    background-color: transparent;
+    text-color:       @wal-gold;
+    padding:          0 8px 0 0;
+}
+
+entry {
+    background-color:  transparent;
+    text-color:        @wal-fg;
+    placeholder-color: @wal-dim;
+    placeholder:       "transmute…";
+    cursor:            text;
+    expand:            true;
+}
+
+listview {
+    background-color: transparent;
+    padding:          8px;
+    lines:            8;
+    columns:          1;
+    scrollbar:        false;
+    spacing:          2px;
+    fixed-height:     true;
+}
+
+element {
+    background-color: transparent;
+    text-color:       @wal-fg;
+    border-radius:    6px;
+    padding:          8px 12px;
+    orientation:      horizontal;
+    spacing:          10px;
+}
+
+element selected.normal {
+    background-color: @wal-surface;
+    text-color:       @wal-gold;
+    border:           1px solid;
+    border-color:     @wal-purple;
+}
+
+element-icon {
+    size:             22px;
+    background-color: transparent;
+}
+
+element-text {
+    background-color: transparent;
+    text-color:       inherit;
+    vertical-align:   0.5;
+}
+
+scrollbar {
+    background-color: transparent;
+    handle-color:     @wal-violet;
+    handle-width:     4px;
+    border:           0;
+}

@@ -1,0 +1,8 @@
+# AUR packages — installed via paru in post-install.
+# Most of what's needed lives in extra now; AUR is small and optional.
+
+papirus-folders
+wlogout
+swayosd
+cava
+ventoy-bin

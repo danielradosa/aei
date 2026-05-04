@@ -1,0 +1,13 @@
+@define-color wal_bg       {color0};
+@define-color wal_surface  {color8};
+@define-color wal_fg       {color7};
+@define-color wal_dim      {color8};
+@define-color wal_gold     {color11};
+@define-color wal_amber    {color3};
+@define-color wal_purple   {color10};
+@define-color wal_violet   {color5};
+@define-color wal_amethyst {color6};
+@define-color wal_indigo   {color4};
+@define-color wal_crimson  {color1};
+@define-color wal_magenta  {color9};
+@define-color wal_blue     {color12};

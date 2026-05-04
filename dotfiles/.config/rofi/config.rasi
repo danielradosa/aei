@@ -1,0 +1,15 @@
+@theme "~/.config/rofi/alchemia.rasi"
+configuration {
+  modi:        "drun,run,window";
+  show-icons:  true;
+  font:        "JetBrainsMono Nerd Font 11";
+  display-drun:   "⚗ ";
+  display-run:    " ";
+  display-window: " ";
+  drun-display-format: "{name}";
+  hover-select: true;
+  me-select-entry: "";
+  me-accept-entry: "MousePrimary";
+}
+element-text { text-color: inherit; }
+element-icon { size: 22px; }

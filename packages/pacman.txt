@@ -1,0 +1,133 @@
+# Official-repo packages installed by aei.
+# One package per line. Comments + blank lines ignored.
+# Categories are cosmetic; pacman doesn't care.
+
+# ── base / kernel / fs ────────────────────────────────────────────────────
+base
+base-devel
+linux
+linux-headers
+linux-firmware
+btrfs-progs
+cryptsetup
+sudo
+networkmanager
+reflector
+pacman-contrib
+man-db
+man-pages
+texinfo
+
+# ── shell + cli ──────────────────────────────────────────────────────────
+zsh
+git
+curl
+wget
+neovim
+vim
+tmux
+htop
+fastfetch
+ranger
+fzf
+ripgrep
+fd
+bat
+eza
+zoxide
+stow
+openssh
+unzip
+zip
+tree
+jq
+starship
+
+# ── languages / dev ──────────────────────────────────────────────────────
+python
+python-pip
+nodejs
+npm
+go
+php
+composer
+docker
+docker-compose
+github-cli
+
+# ── greeter ──────────────────────────────────────────────────────────────
+greetd
+greetd-tuigreet
+
+# ── hyprland + wayland stack ─────────────────────────────────────────────
+hyprland
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+hyprlock
+hypridle
+hyprpicker
+awww
+kitty
+waybar
+rofi
+wofi
+mako
+libnotify
+
+# ── audio (pipewire) ─────────────────────────────────────────────────────
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+pavucontrol
+
+# ── files / clipboard / screenshot ───────────────────────────────────────
+thunar
+thunar-volman
+gvfs
+wl-clipboard
+cliphist
+grim
+slurp
+swappy
+
+# ── hardware controls ────────────────────────────────────────────────────
+brightnessctl
+playerctl
+bluez
+bluez-utils
+network-manager-applet
+
+# ── polkit / qt / gtk theming ────────────────────────────────────────────
+polkit-kde-agent
+qt5-wayland
+qt6-wayland
+kvantum
+papirus-icon-theme
+
+# ── nvidia (proprietary, open kernel modules) ────────────────────────────
+nvidia-open-dkms
+nvidia-utils
+nvidia-settings
+lib32-nvidia-utils
+libva-nvidia-driver
+egl-wayland
+
+# ── fonts ────────────────────────────────────────────────────────────────
+ttf-jetbrains-mono-nerd
+ttf-firacode-nerd
+noto-fonts
+noto-fonts-emoji
+noto-fonts-cjk
+
+# ── pywal ────────────────────────────────────────────────────────────────
+python-pywal
+python-pywalfox
+imagemagick
+
+# ── browser / etc ────────────────────────────────────────────────────────
+firefox
+flatpak
+xdg-user-dirs
+xdg-utils
+prismlauncher
