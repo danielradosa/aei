@@ -41,30 +41,77 @@ gpg --keyserver-options auto-key-retrieve --verify archlinux-*.iso.sig
 
 ### 2. Make a bootable USB
 
-**Ventoy** (recommended — drop multiple ISOs on one stick, no re-flash):
+You need an 8 GB+ USB stick. **Anything on it gets wiped — back it up first.**
+
+#### Coming from Windows?
+
+Use **Rufus** (`https://rufus.ie`) — it's a single 1.4 MB `.exe`, no install:
+
+1. Plug in the USB stick.
+2. Open Rufus → **Device** = your USB.
+3. **Boot selection** → *SELECT* → pick `archlinux-x86_64.iso`.
+4. A popup asks "ISOHybrid image detected — write in ISO Image mode or DD
+   Image mode?" → **choose "DD Image mode"**. ISO mode breaks the Arch ISO's
+   layout and the resulting USB won't boot.
+5. *Partition scheme* = **GPT**, *Target system* = **UEFI (non CSM)** for any
+   machine made after ~2012. (BIOS/MBR if you have an older box.)
+6. *START* → confirm the wipe → wait ~3 min.
+
+**Balena Etcher** (`https://etcher.balena.io`) is the friendlier alternative —
+GUI on Windows/macOS/Linux, no DD-mode prompt to think about, just *Flash from
+file → Select target → Flash*. Slightly slower but harder to misuse.
+
+> Don't use Windows' built-in "burn ISO" tool, the Microsoft USB/DVD tool, or
+> UNetbootin — they all produce a USB the Arch ISO won't boot from.
+
+**Already on Linux?**
 
 ```bash
-sudo pacman -S ventoy        # or get it from ventoy.net
-sudo ventoy -i /dev/sdX      # ⚠️ wipes the USB
+# Ventoy (recommended — drop multiple ISOs on one stick, no re-flash later)
+sudo pacman -S ventoy
+sudo ventoy -i /dev/sdX                # wipes the USB
 # then just copy archlinux-x86_64.iso to the USB's exfat partition
-```
 
-**dd** (single-purpose, classic):
-
-```bash
+# Or dd (single-purpose, classic)
 sudo dd if=archlinux-x86_64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
-Find your USB device with `lsblk` *before* running either — picking the wrong
+Find the USB device with `lsblk` *before* running either — picking the wrong
 `/dev/sdX` wipes a real drive.
+
+#### Before you reboot — firmware prep
+
+These steps apply to everyone, but Windows users hit them most often.
+Reboot, mash the firmware key as the vendor logo appears (varies — common
+ones: **F2**, **Del**, **F10**, **Esc**, **F1**; ThinkPad: **Enter** then **F1**;
+Surface: hold **Vol Up** while powering on). Once inside:
+
+1. **Disable Secure Boot.** Look under *Security* → *Secure Boot* → *Disabled*.
+   The Arch ISO is unsigned, so Secure Boot will silently refuse to boot it
+   and dump you back into Windows.
+2. **Set USB as first boot device** (or just use the one-shot boot menu —
+   F12 / F11 / F9 / Esc / F8 depending on vendor). On UEFI machines you
+   want the entry that says `UEFI: <USB name>`, *not* the plain `<USB name>`
+   one (that's legacy/CSM mode).
+3. **(Replacing Windows entirely?)** Make sure you've copied anything you
+   want to keep onto another drive. The default aei flow runs
+   `sgdisk --zap-all` and **erases the whole disk**. If you want to keep
+   Windows, see the dualboot section further down.
+4. **(Dell/HP/Lenovo)** Switch SATA mode from *RAID/Intel RST* to **AHCI**
+   if you're on an older laptop — Linux's NVMe driver expects AHCI.
+   ⚠️ Doing this on a working Windows install breaks Windows' boot. Only
+   change it if you're wiping Windows anyway, or follow Microsoft's
+   "switch to AHCI without reinstall" guide first.
 
 ### 3. Boot the ISO
 
-In your BIOS/UEFI, set USB as the first boot device (or use the boot-menu
-hotkey: F12/F11/F10/Esc depending on vendor). Disable Secure Boot. Pick the
-"Arch Linux install medium" entry.
+With Secure Boot disabled and USB selected (steps above), reboot. Pick
+**"Arch Linux install medium"** from the boot menu. After ~20 seconds of
+kernel + initrd output, you should land at a `root@archiso ~ #` prompt.
 
-You should land at a `root@archiso ~ #` prompt.
+If your machine boots straight back into Windows: Secure Boot is still on,
+or the firmware kept the internal drive ahead of USB. Re-enter firmware
+setup, fix it, save & exit.
 
 ### 4. Set keymap and verify network
 
@@ -158,9 +205,8 @@ later.
    80 GB minimum for a comfortable Arch install, more if you want games.
    Click *Shrink* — leave the freed space *unallocated* (don't make a new
    partition from Windows; we'll do that from the ISO with Linux tooling).
-4. **Disable Secure Boot** in your firmware (BIOS/UEFI). Reboot, mash
-   F2/Del/F12 (vendor-dependent), find *Boot → Secure Boot → Disabled*.
-   Without this, your USB won't boot the Arch ISO.
+4. **Disable Secure Boot** in your firmware (covered in step 2's "firmware
+   prep" subsection above). Required for the Arch ISO to boot at all.
 
 ### B. Boot the Arch ISO
 
